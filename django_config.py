@@ -55,8 +55,8 @@ print()
 os.system('virtualenv -p python3 .venv')
 print()
 os.chdir(folders.current_folder)
-# os.chdir('/home/amauri/python/django/env_config_classes')
-os.system('cp /home/amauri/python/django/env_config_classes/requirements.txt {}'.format(folders.new_folder))
+# os.chdir('/home/amauri/python/django/django_config')
+os.system('cp /home/amauri/python/django/django_config/requirements.txt {}'.format(folders.new_folder))
 os.chdir(folders.new_folder)
 os.system('.venv/bin/pip install -r requirements.txt')
 os.system('.venv/bin/django-admin startproject {} .'.format(folders.project))
@@ -128,7 +128,7 @@ def git_repo():
     os.chdir(folders.path_new_folder)
     os.system('echo "# {}" >> README.md'.format(folders.new_folder))
     os.system('git init')
-    os.system('cp /home/amauri/python/django/env_config_classes/.gitignore .')#.format(folders.path_new_folder))
+    os.system('cp /home/amauri/python/django/django_config/.gitignore .')#.format(folders.path_new_folder))
     # mudar linha acima para ponto no final
     os.system('git add .')
     os.system('git commit -m "first commit"')
@@ -161,7 +161,6 @@ threadObj2.start()
 
 """
 …or create a new repository on the command line
-
 echo "# test_django" >> README.md
 git init
 git add README.md
