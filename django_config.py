@@ -6,6 +6,7 @@ import webbrowser
 import argparse
 
 
+# Opções de instalação e configuração do ambiente e do Django
 parser = argparse.ArgumentParser(description='Opções de instalação do Django')
 parser.add_argument('-i', '--ignore', action='store_true',
                     help='Ignora a apresentação das informações no final da instalação.')
@@ -21,6 +22,7 @@ os.system('clear')
 print("Esse script irá instalar e configurar o Django na última versão dentro do virtualenv.\n")
 
 
+# Classe que contém o nome e o caminho da pasta, projeto e app
 class FoldersStructure:
 
     def __init__(self, current_folder, new_folder, project, app):
@@ -33,6 +35,7 @@ class FoldersStructure:
         self.path_app = '/'.join([self.path_project, self.app])
 
 
+# Solicita nome da pasta, projeto, app e usuário do git (opcional)
 while True:
     curr_folder = os.getcwd()
     create_folder = input("Nome da pasta a ser criada: ")
@@ -52,6 +55,7 @@ while True:
 
 print()
 
+# Cria o ambiente virtual e instala as dependências do requirements.txt
 os.system('virtualenv -p python3 .venv')
 print()
 os.chdir(folders.current_folder)
@@ -66,7 +70,7 @@ os.chdir(folders.path_app)
 os.mkdir('static')
 os.mkdir('templates')
 
-
+# Modifica o arquivo settings.py para proteger os dados
 if args.modify:
     # Configura e cria os arquivos necessários
     with open("{}/settings.py".format(folders.path_project)) as file:
@@ -92,19 +96,22 @@ if args.modify:
 
         writeFile = file_w.write(reg + "\nSTATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')")
 
+    # Cria o arquivo .env que contém dados secretos/importantes que não são enviados ao git
     with open("{}/.env".format(folders.path_new_folder), "w") as env_file:
 
         env_file.write("SECRET_KEY=" + reg_sec_key.group(1) + "\n"
                        "DEBUG=" + reg_deb.group(1) + "\n"
                        "ALLOWED_HOSTS=127.0.0.1, .localhost, .herokuapp.com\n")
 
+    # Cria o arquivo Procfile que contém informações para o Heroku
     with open("{}/Procfile".format(folders.path_new_folder), "w") as proc_file:
         proc_file.write("web: gunicorn {}.wsgi --log-file -".format(folders.project))
 
+    # Cria o arquivo runtime.txt contendo a versão do python para o Heroku
     with open("{}/runtime.txt".format(folders.path_new_folder), "w") as run_time:
         run_time.write("python-3.5.2")
 
-
+# Caso não seja ignorada a opção de mostrar as informações durante a instalação
 if not args.ignore:
     os.system('clear')
     print("\nO arquivo settings.py foi modificado.")
@@ -121,50 +128,42 @@ if not args.ignore:
     os.system('tree | more')
     input("\nPressione uma tecla e AGUARDE abrir a página no browser...")
 
+# Informa que o browser é o Google Chrome
 b = webbrowser.get('google-chrome')
 
-
+# Inicializa o git, adiciona, comita e envia os arquivos ao github (opcional)
 def git_repo():
     os.chdir(folders.path_new_folder)
     os.system('echo "# {}" >> README.md'.format(folders.new_folder))
     os.system('git init')
-    os.system('cp /home/amauri/python/django/django_config/.gitignore .')#.format(folders.path_new_folder))
-    # mudar linha acima para ponto no final
+    os.system('cp /home/amauri/python/django/django_config/.gitignore .')
     os.system('git add .')
     os.system('git commit -m "first commit"')
     os.system('git remote add origin git@github.com:{}/{}.git'.format(user_git, folders.new_folder))
     os.system('git push -u origin master')
 
 
+# Abre o browser com o github (opcional) e abre outra aba com o Django após a inicialização do servidor abaixo
 def abre_browser():
     if args.git:
         b.open_new('github.com/{}/{}'.format(user_git, folders.new_folder))
-    time.sleep(5)
+    time.sleep(3)
     b.open('http:/127.0.0.1:8000')
 
 
+# Inicia o servidor do Django
 def run_server():
     os.chdir(folders.path_new_folder)
     os.system('.venv/bin/python manage.py runserver')
 
 
+# Se a opção for enviar para o github, chama a função acima
 if args.git:
     git_repo()
 
+# Para executar as duas tarefas/funções ao mesmo tempo
 threadObj = threading.Thread(target=abre_browser)
 threadObj.start()
 
 threadObj2 = threading.Thread(target=run_server)
 threadObj2.start()
-
-
-
-"""
-…or create a new repository on the command line
-echo "# test_django" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git remote add origin git@github.com:amaurirg/test_django.git
-git push -u origin master
-"""
