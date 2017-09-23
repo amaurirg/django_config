@@ -4,6 +4,8 @@ import time
 import threading
 import webbrowser
 import argparse
+from decouple import config
+from github import Github
 
 
 # Opções de instalação e configuração do ambiente e do Django
@@ -22,6 +24,18 @@ os.system('clear')
 print("Esse script irá instalar e configurar o Django na última versão dentro do virtualenv.\n")
 
 
+
+if args.git:
+    username = config('username')
+    password = config('password')
+
+    github_api = Github(username, password)
+    user_escopo = github_api.get_user()
+
+    lista_repos = [repo.name for repo in user_escopo.get_repos()]
+
+# print(lista_repos)
+
 # Classe que contém o nome e o caminho da pasta, projeto e app
 class FoldersStructure:
 
@@ -38,11 +52,20 @@ class FoldersStructure:
 # Solicita nome da pasta, projeto, app e usuário do git (opcional)
 while True:
     curr_folder = os.getcwd()
+    if args.git:
+        print("O nome da pasta será o mesmo nome do repositório no Github!!!\n")
     create_folder = input("Nome da pasta a ser criada: ")
+    if args.git:
+        if create_folder in lista_repos:
+            print("Esse repositório já existe. Escolha outro nome de pasta.")
+        else:
+            cria_repo = True
     if os.path.exists(create_folder):
         print("Essa pasta já existe. Escolha outro nome.\n")
     else:
         os.makedirs(create_folder)
+        if cria_repo:
+            user_escopo.create_repo(create_folder)
         os.chdir('./{}'.format(create_folder))
         create_project = input("Digite o nome do projeto: ")
         create_app = input("Digite o nome da app: ")
@@ -54,6 +77,9 @@ while True:
         break
 
 print()
+
+# alias manage='python $VIRTUAL_ENV/../manage.py'
+# alias django_config='python3 /home/amauri/python/django/django_config/django_config.py'
 
 # Cria o ambiente virtual e instala as dependências do requirements.txt
 os.system('virtualenv -p python3 .venv')
