@@ -58,6 +58,7 @@ while True:
     if args.git:
         if create_folder in lista_repos:
             print("Esse repositório já existe. Escolha outro nome de pasta.")
+            cria_repo = False
         else:
             cria_repo = True
     if os.path.exists(create_folder):
@@ -70,10 +71,10 @@ while True:
         create_project = input("Digite o nome do projeto: ")
         create_app = input("Digite o nome da app: ")
         folders = FoldersStructure(curr_folder, create_folder, create_project, create_app)
-        if args.git:
-            user_git = input("Digite seu usuário do github: ")
-        else:
-            user_git = None
+        # if args.git:
+        #     user_git = input("Digite seu usuário do github: ")
+        # else:
+        #     user_git = None
         break
 
 print()
@@ -82,7 +83,7 @@ print()
 # alias django_config='python3 /home/amauri/python/django/django_config/django_config.py'
 
 # Cria o ambiente virtual e instala as dependências do requirements.txt
-os.system('virtualenv -p python3 .venv')
+os.system('virtualenv -p python3.5 .venv')
 print()
 os.chdir(folders.current_folder)
 # os.chdir('/home/amauri/python/django/django_config')
@@ -165,14 +166,14 @@ def git_repo():
     os.system('cp /home/amauri/python/django/django_config/.gitignore .')
     os.system('git add .')
     os.system('git commit -m "first commit"')
-    os.system('git remote add origin git@github.com:{}/{}.git'.format(user_git, folders.new_folder))
+    os.system('git remote add origin git@github.com:{}/{}.git'.format(username, folders.new_folder))
     os.system('git push -u origin master')
 
 
 # Abre o browser com o github (opcional) e abre outra aba com o Django após a inicialização do servidor abaixo
 def abre_browser():
     if args.git:
-        b.open_new('github.com/{}/{}'.format(user_git, folders.new_folder))
+        b.open_new('github.com/{}/{}'.format(username, folders.new_folder))
     time.sleep(3)
     b.open('http:/127.0.0.1:8000')
 
