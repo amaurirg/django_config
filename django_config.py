@@ -4,16 +4,19 @@ import time
 import threading
 import webbrowser
 import argparse
+import platform
 from decouple import config
 from github import Github
 
 
 # Opções de instalação e configuração do ambiente e do Django
+#
 parser = argparse.ArgumentParser(description='Opções de instalação do Django')
 parser.add_argument('-i', '--ignore', action='store_true',
                     help='Ignora a apresentação das informações no final da instalação.')
 parser.add_argument('-g', '--git', action='store_true',
-                    help='Cria o repositório no github e envia os arquivos após a instalação por SSH.')
+                    help='Cria o repositório no github e envia os arquivos após a instalação por SSH.'
+                    '\nCria o arquivo .gitignore para não enviar suas credenciais e configurações para o Github.')
 parser.add_argument('-m', '--modify', action='store_true',
                     help='Modifica o arquivo settings.py. '
                          'Cria as pastas "static" e "templates" dentro do "app". '
@@ -22,8 +25,6 @@ args = parser.parse_args()
 
 os.system('clear')
 print("Esse script irá instalar e configurar o Django na última versão dentro do virtualenv.\n")
-
-
 
 if args.git:
     username = config('username')
@@ -48,12 +49,11 @@ class FoldersStructure:
         self.path_project = '/'.join([self.path_new_folder, self.project])
         self.path_app = '/'.join([self.path_project, self.app])
 
-
+cria_repo = False
 # Solicita nome da pasta, projeto, app e usuário do git (opcional)
 while True:
     curr_folder = os.getcwd()
-    if args.git:
-        print("O nome da pasta será o mesmo nome do repositório no Github!!!\n")
+    print("Se você escolheu criar o repositório no Gihub, o nome da pasta e repositório serão os mesmos!!!\n")
     create_folder = input("Nome da pasta a ser criada: ")
     if args.git:
         if create_folder in lista_repos:
@@ -71,23 +71,18 @@ while True:
         create_project = input("Digite o nome do projeto: ")
         create_app = input("Digite o nome da app: ")
         folders = FoldersStructure(curr_folder, create_folder, create_project, create_app)
-        # if args.git:
-        #     user_git = input("Digite seu usuário do github: ")
-        # else:
-        #     user_git = None
         break
 
 print()
 
-# alias manage='python $VIRTUAL_ENV/../manage.py'
-# alias django_config='python3 /home/amauri/python/django/django_config/django_config.py'
+# Lê a variável de ambiente criada no arquivo .bashrc através do arquivo cria_aliases.py
+path_djc = os.getenv('PATH_DJC')
 
 # Cria o ambiente virtual e instala as dependências do requirements.txt
-os.system('virtualenv -p python3.5 .venv')
+os.system('virtualenv -p python3 .venv')
 print()
 os.chdir(folders.current_folder)
-# os.chdir('/home/amauri/python/django/django_config')
-os.system('cp /home/amauri/python/django/django_config/requirements.txt {}'.format(folders.new_folder))
+os.system('cp {}/requirements.txt {}'.format(path_djc, folders.new_folder))
 os.chdir(folders.new_folder)
 os.system('.venv/bin/pip install -r requirements.txt')
 os.system('.venv/bin/django-admin startproject {} .'.format(folders.project))
@@ -136,12 +131,13 @@ if args.modify:
 
     # Cria o arquivo runtime.txt contendo a versão do python para o Heroku
     with open("{}/runtime.txt".format(folders.path_new_folder), "w") as run_time:
-        run_time.write("python-3.5.2")
+        run_time.write("python-{}".format(platform.python_version()))
 
 # Caso não seja ignorada a opção de mostrar as informações durante a instalação
 if not args.ignore:
     os.system('clear')
-    print("\nO arquivo settings.py foi modificado.")
+    if args.modify:
+        print("\nO arquivo settings.py foi modificado.")
     print("Foram criados os seguintes arquivos de configuração:\n.env\nruntime.txt\nProcfile")
     os.chdir(folders.path_new_folder)
     input("\nPressione uma tecla para continuar...")
@@ -163,7 +159,7 @@ def git_repo():
     os.chdir(folders.path_new_folder)
     os.system('echo "# {}" >> README.md'.format(folders.new_folder))
     os.system('git init')
-    os.system('cp /home/amauri/python/django/django_config/.gitignore .')
+    os.system('cp {}/.gitignore .'.format(path_djc))
     os.system('git add .')
     os.system('git commit -m "first commit"')
     os.system('git remote add origin git@github.com:{}/{}.git'.format(username, folders.new_folder))
