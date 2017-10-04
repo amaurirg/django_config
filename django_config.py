@@ -18,13 +18,23 @@ parser.add_argument('-g', '--git', action='store_true',
                     help='Cria o repositório no github e envia os arquivos após a instalação por SSH.'
                     '\nCria o arquivo .gitignore para não enviar suas credenciais e configurações para o Github.')
 parser.add_argument('-m', '--modify', action='store_true',
-                    help='Modifica o arquivo settings.py. '
+                    help='Modifica os arquivos settings.py. e wsgi.py'
                          'Cria as pastas "static" e "templates" dentro do "app". '
                          'Cria e configura os arquivos ".env", "Procfile" e "runtime.txt".')
 args = parser.parse_args()
 
 os.system('clear')
+
 print("Esse script irá instalar e configurar o Django na última versão dentro do virtualenv.\n")
+
+if args.ignore:
+    print("Você escolheu ignorar as informações no final da instalação.\n"
+          "Não será mostrado quais arquivos foram criados e a estrutura de pastas.\n")
+if args.modify:
+    print("Você escolheu modificar os arquivos settings.py. e wsgi.py.\n"
+          "Esses arquivos serão preparados para sua segurança e agilidade no projeto.\n")
+
+# lista_repos = []
 
 if args.git:
     username = config('username')
@@ -35,7 +45,12 @@ if args.git:
 
     lista_repos = [repo.name for repo in user_escopo.get_repos()]
 
-# print(lista_repos)
+    print("Você escolheu enviar para o Github. Será criado o arquivo .gitignore para não enviar\n"
+          "suas credenciais e configurações para o Github.\n")
+
+print("Caso queira alterar o modo de instalação, pressione CTRL+C para cancelar essa instalação\n"
+      "e digite 'django_config -h' para ver as opções.\n")
+
 
 # Classe que contém o nome e o caminho da pasta, projeto e app
 class FoldersStructure:
@@ -50,23 +65,31 @@ class FoldersStructure:
         self.path_app = '/'.join([self.path_project, self.app])
 
 cria_repo = False
+cria_pasta = False
 # Solicita nome da pasta, projeto, app e usuário do git (opcional)
-while True:
-    curr_folder = os.getcwd()
-    print("Se você escolheu criar o repositório no Gihub, o nome da pasta e repositório serão os mesmos!!!\n")
-    create_folder = input("Nome da pasta a ser criada: ")
+
+curr_folder = os.getcwd()
+
+while not cria_repo and not cria_pasta:
     if args.git:
-        if create_folder in lista_repos:
-            print("Esse repositório já existe. Escolha outro nome de pasta.")
-            cria_repo = False
-        else:
-            cria_repo = True
-    if os.path.exists(create_folder):
-        print("Essa pasta já existe. Escolha outro nome.\n")
+        print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!\n")
+    create_folder = input("Nome da pasta a ser criada: ")
+    # if args.git:
+    #     if create_folder in lista_repos:
+    #         print("Esse repositório já existe. Escolha outro nome de pasta.")
+    #         cria_repo = False
+    #     else:
+    #         cria_repo = True
+    if os.path.exists(create_folder) or create_folder in lista_repos:
+        print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
+        # cria_pasta = False
     else:
+        # cria_pasta = True
+        # break
+    # if cria_repo and cria_pasta:
         os.makedirs(create_folder)
-        if cria_repo:
-            user_escopo.create_repo(create_folder)
+        # if cria_repo:
+        user_escopo.create_repo(create_folder)
         os.chdir('./{}'.format(create_folder))
         create_project = input("Digite o nome do projeto: ")
         create_app = input("Digite o nome da app: ")
@@ -95,8 +118,8 @@ os.mkdir('templates')
 # Modifica o arquivo settings.py para proteger os dados
 if args.modify:
     # Configura e cria os arquivos necessários
-    with open("{}/settings.py".format(folders.path_project)) as file:
-        readFile = file.read()
+    with open("{}/settings.py".format(folders.path_project)) as file_r:
+        readFile = file_r.read()
         reg_sec_key = re.search("SECRET_KEY = '(.+)'", readFile)
         reg_deb = re.search("DEBUG = (.+)", readFile)
 
@@ -117,6 +140,14 @@ if args.modify:
         reg = re.sub('UTC', 'America/Sao_Paulo', reg)
 
         writeFile = file_w.write(reg + "\nSTATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')")
+
+    with open("{}/wsgi.py".format(folders.path_project)) as file_r:
+        readFile = file_r.read()
+
+    with open("{}/wsgi.py".format(folders.path_project), "w") as file_w:
+        reg = re.sub("import os", "import os\nfrom dj_static import Cling", readFile)
+        reg = re.sub("application = get_wsgi_application\(\)", "application = Cling(get_wsgi_application())", reg)
+        writeFile = file_w.write(reg)
 
     # Cria o arquivo .env que contém dados secretos/importantes que não são enviados ao git
     with open("{}/.env".format(folders.path_new_folder), "w") as env_file:
@@ -159,7 +190,9 @@ def git_repo():
     os.chdir(folders.path_new_folder)
     os.system('echo "# {}" >> README.md'.format(folders.new_folder))
     os.system('git init')
-    os.system('cp {}/.gitignore .'.format(path_djc))
+    # os.system('cp {}/.gitignore .'.format(path_djc))
+    with open(".gitignore", "w") as file_i:
+        file_i.write(".env\n.idea\n.venv\ndb.sqlite3\n*pyc\n__pycache__")
     os.system('git add .')
     os.system('git commit -m "first commit"')
     os.system('git remote add origin git@github.com:{}/{}.git'.format(username, folders.new_folder))
