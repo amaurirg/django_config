@@ -1,1 +1,1 @@
-# django_config
+Django Config
