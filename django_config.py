@@ -1,4 +1,5 @@
 import os
+import string
 import re
 import time
 import threading
@@ -10,17 +11,21 @@ from github import Github
 
 
 # Opções de instalação e configuração do ambiente e do Django
-#
+# Para acessar essas opções digite django_config -h ou django_config --help
 parser = argparse.ArgumentParser(description='Opções de instalação do Django')
 parser.add_argument('-i', '--ignore', action='store_true',
                     help='Ignora a apresentação das informações no final da instalação.')
 parser.add_argument('-g', '--git', action='store_true',
                     help='Cria o repositório no github e envia os arquivos após a instalação por SSH.'
-                    '\nCria o arquivo .gitignore para não enviar suas credenciais e configurações para o Github.')
+                    'Para isto você tem que ter uma conta no Github e suas credenciais configuradas neste computador.'
+                    'Cria o arquivo .gitignore para não enviar suas credenciais e configurações para o Github.')
 parser.add_argument('-m', '--modify', action='store_true',
                     help='Modifica os arquivos settings.py. e wsgi.py'
-                         'Cria as pastas "static" e "templates" dentro do "app". '
+                         'Cria as pastas "static" e "templates" dentro do "app".'
                          'Cria e configura os arquivos ".env", "Procfile" e "runtime.txt".')
+parser.add_argument('-d', '--deploy', action='store_true',
+                    help='Faz o deploy no Heroku enviando as configurações do arquivo ".env" com segurança.'
+                    'Para isto você tem que ter uma conta no Heroku e o Toolbelt instalado.')
 args = parser.parse_args()
 
 os.system('clear')
@@ -47,6 +52,9 @@ if args.git:
 
     print("Você escolheu enviar para o Github. Será criado o arquivo .gitignore para não enviar\n"
           "suas credenciais e configurações para o Github.\n")
+else:
+    lista_repos = []
+    user_escopo = None
 
 print("Caso queira alterar o modo de instalação, pressione CTRL+C para cancelar essa instalação\n"
       "e digite 'django_config -h' para ver as opções.\n")
@@ -64,32 +72,46 @@ class FoldersStructure:
         self.path_project = '/'.join([self.path_new_folder, self.project])
         self.path_app = '/'.join([self.path_project, self.app])
 
-cria_repo = False
-cria_pasta = False
-# Solicita nome da pasta, projeto, app e usuário do git (opcional)
+# cria_repo = False
+# cria_pasta = False
+
 
 curr_folder = os.getcwd()
 
-while not cria_repo and not cria_pasta:
+aceita = list(list(string.ascii_lowercase) + list(string.digits) + ['-'])
+
+while True:
     if args.git:
         print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!\n")
+    print("O nome da pasta tem que ser apenas letras minúsculas, números e hífen.")
     create_folder = input("Nome da pasta a ser criada: ")
+    pasta = ''
+    invalidos = ''
+    for letra in create_folder:
+        if letra not in aceita:
+            invalidos += letra
+        else:
+            pasta += letra
+    if pasta == create_folder:
+        break
+    else:
+        print("\nCaractere(s) inválido(s): {}".format(invalidos))
+print("nome da pasta:" + create_folder)
+
+# Solicita nome da pasta, projeto, app e usuário do git (opcional)
+# while not cria_repo and not cria_pasta:
+while True:
     # if args.git:
-    #     if create_folder in lista_repos:
-    #         print("Esse repositório já existe. Escolha outro nome de pasta.")
-    #         cria_repo = False
-    #     else:
-    #         cria_repo = True
+    #     print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!\n")
+    # create_folder = input("Nome da pasta a ser criada: ")
+
     if os.path.exists(create_folder) or create_folder in lista_repos:
         print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
-        # cria_pasta = False
+
     else:
-        # cria_pasta = True
-        # break
-    # if cria_repo and cria_pasta:
         os.makedirs(create_folder)
-        # if cria_repo:
-        user_escopo.create_repo(create_folder)
+        if args.git:
+            user_escopo.create_repo(create_folder)
         os.chdir('./{}'.format(create_folder))
         create_project = input("Digite o nome do projeto: ")
         create_app = input("Digite o nome da app: ")
