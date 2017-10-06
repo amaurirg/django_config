@@ -1,4 +1,5 @@
 import os
+import sys
 import string
 import re
 import time
@@ -39,8 +40,6 @@ if args.modify:
     print("Você escolheu modificar os arquivos settings.py. e wsgi.py.\n"
           "Esses arquivos serão preparados para sua segurança e agilidade no projeto.\n")
 
-# lista_repos = []
-
 if args.git:
     username = config('username')
     password = config('password')
@@ -48,6 +47,7 @@ if args.git:
     github_api = Github(username, password)
     user_escopo = github_api.get_user()
 
+    print("Obtendo lista de repositórios do Github...")
     lista_repos = [repo.name for repo in user_escopo.get_repos()]
 
     print("Você escolheu enviar para o Github. Será criado o arquivo .gitignore para não enviar\n"
@@ -56,8 +56,23 @@ else:
     lista_repos = []
     user_escopo = None
 
+if args.deploy:
+    print("Obtendo lista de apps do Heroku...")
+    apps = os.popen('heroku apps').read().strip().split('\n')
+    if len(apps[1:]) >= 5:
+        print("Você já tem 5 apps no Heroku. Se sua conta for gratuita não será permitido a criação de novos apps.\n")
+        while True:
+            resp = input("Deseja continuar? (s/n): ")
+            if resp == 's':
+                break
+            elif resp == 'n':
+                sys.exit()
+            else:
+                pass
+    print("Você escolheu fazer o deploy no Heroku. Será enviado o arquivo .env para enviar\n"
+          "suas credenciais e configurações para o Heroku com segurança\n")
 print("Caso queira alterar o modo de instalação, pressione CTRL+C para cancelar essa instalação\n"
-      "e digite 'django_config -h' para ver as opções.\n")
+      "e digite 'django_config -h' para ver as opções.\n\n")
 
 
 # Classe que contém o nome e o caminho da pasta, projeto e app
@@ -72,17 +87,13 @@ class FoldersStructure:
         self.path_project = '/'.join([self.path_new_folder, self.project])
         self.path_app = '/'.join([self.path_project, self.app])
 
-# cria_repo = False
-# cria_pasta = False
-
-
 curr_folder = os.getcwd()
 
 aceita = list(list(string.ascii_lowercase) + list(string.digits) + ['-'])
 
 while True:
     if args.git:
-        print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!\n")
+        print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!")
     print("O nome da pasta tem que ser apenas letras minúsculas, números e hífen.")
     create_folder = input("Nome da pasta a ser criada: ")
     pasta = ''
@@ -92,22 +103,16 @@ while True:
             invalidos += letra
         else:
             pasta += letra
-    if pasta == create_folder:
-        break
-    else:
+    if pasta != create_folder:
         print("\nCaractere(s) inválido(s): {}".format(invalidos))
-print("nome da pasta:" + create_folder)
+    else:
+        pass
 
-# Solicita nome da pasta, projeto, app e usuário do git (opcional)
-# while not cria_repo and not cria_pasta:
-while True:
-    # if args.git:
-    #     print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!\n")
-    # create_folder = input("Nome da pasta a ser criada: ")
-
-    if os.path.exists(create_folder) or create_folder in lista_repos:
+    if os.path.exists(create_folder) or create_folder in lista_repos or create_folder in apps:
         print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
-
+        # width = rows, columns = os.popen('stty size', 'r').read().split()
+        width = os.get_terminal_size()[0]
+        print("=" * width + "\n")
     else:
         os.makedirs(create_folder)
         if args.git:
@@ -221,10 +226,17 @@ def git_repo():
     os.system('git push -u origin master')
 
 
+# Faz o deploy no Heroku e abre o browser na página da aplicação
+def deploy_heroku():
+    os.system('heroku apps:create {}'.format(create_folder))
+    os.system('heroku config:push')
+    os.system('git push heroku master --force')
+    b.open('https://{}.herokuapp.com/'.format(create_folder))
+
 # Abre o browser com o github (opcional) e abre outra aba com o Django após a inicialização do servidor abaixo
 def abre_browser():
     if args.git:
-        b.open_new('github.com/{}/{}'.format(username, folders.new_folder))
+        b.open('github.com/{}/{}'.format(username, folders.new_folder))
     time.sleep(3)
     b.open('http:/127.0.0.1:8000')
 
@@ -239,9 +251,13 @@ def run_server():
 if args.git:
     git_repo()
 
-# Para executar as duas tarefas/funções ao mesmo tempo
+# Para executar as tarefas/funções ao mesmo tempo
 threadObj = threading.Thread(target=abre_browser)
 threadObj.start()
+
+if args.deploy:
+    threadObj2 = threading.Thread(target=deploy_heroku)
+    threadObj2.start()
 
 threadObj2 = threading.Thread(target=run_server)
 threadObj2.start()
