@@ -56,6 +56,7 @@ else:
     lista_repos = []
     user_escopo = None
 
+apps = []
 if args.deploy:
     print("Obtendo lista de apps do Heroku...")
     apps = os.popen('heroku apps').read().strip().split('\n')
@@ -141,6 +142,8 @@ os.system('../.venv/bin/python ../manage.py startapp {}'.format(folders.app))
 os.chdir(folders.path_app)
 os.mkdir('static')
 os.mkdir('templates')
+os.mkdir('html_to_django')
+os.system('cp {}/regex_html.py html_to_django'.format(path_djc))
 
 # Modifica o arquivo settings.py para proteger os dados
 if args.modify:
@@ -261,3 +264,4 @@ if args.deploy:
 
 threadObj2 = threading.Thread(target=run_server)
 threadObj2.start()
+
