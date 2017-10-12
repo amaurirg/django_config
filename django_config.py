@@ -105,24 +105,24 @@ while True:
         else:
             pasta += letra
     if pasta != create_folder:
-        print("\nCaractere(s) inválido(s): {}".format(invalidos))
-    else:
-        pass
-
-    if os.path.exists(create_folder) or create_folder in lista_repos or create_folder in apps:
-        print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
-        # width = rows, columns = os.popen('stty size', 'r').read().split()
+        print("\nCaractere(s) inválido(s): {}\n".format(invalidos))
         width = os.get_terminal_size()[0]
         print("=" * width + "\n")
     else:
-        os.makedirs(create_folder)
-        if args.git:
-            user_escopo.create_repo(create_folder)
-        os.chdir('./{}'.format(create_folder))
-        create_project = input("Digite o nome do projeto: ")
-        create_app = input("Digite o nome da app: ")
-        folders = FoldersStructure(curr_folder, create_folder, create_project, create_app)
-        break
+        if os.path.exists(create_folder) or create_folder in lista_repos or create_folder in apps:
+            print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
+            # width = rows, columns = os.popen('stty size', 'r').read().split()
+            width = os.get_terminal_size()[0]
+            print("=" * width + "\n")
+        else:
+            os.makedirs(create_folder)
+            if args.git:
+                user_escopo.create_repo(create_folder)
+            os.chdir('./{}'.format(create_folder))
+            create_project = input("Digite o nome do projeto: ")
+            create_app = input("Digite o nome da app: ")
+            folders = FoldersStructure(curr_folder, create_folder, create_project, create_app)
+            break
 
 print()
 
@@ -142,6 +142,7 @@ os.system('../.venv/bin/python ../manage.py startapp {}'.format(folders.app))
 os.chdir(folders.path_app)
 os.mkdir('static')
 os.mkdir('templates')
+os.system('cp {}/index.html templates'.format(path_djc))
 os.mkdir('html_to_django')
 os.system('cp {}/regex_html.py html_to_django'.format(path_djc))
 
@@ -234,6 +235,8 @@ def deploy_heroku():
     os.system('heroku apps:create {}'.format(create_folder))
     os.system('heroku config:push')
     os.system('git push heroku master --force')
+    os.system('heroku config:set ALLOWED_HOSTS=.herokuapp.com')
+    os.system('heroku config:set DEBUG=False')
     b.open('https://{}.herokuapp.com/'.format(create_folder))
 
 # Abre o browser com o github (opcional) e abre outra aba com o Django após a inicialização do servidor abaixo
