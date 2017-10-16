@@ -7,6 +7,7 @@ import threading
 import webbrowser
 import argparse
 import platform
+import shutil
 from decouple import config
 from github import Github
 
@@ -44,8 +45,7 @@ if args.git:
     username = config('username')
     password = config('password')
 
-    github_api = Github(username, password)
-    user_escopo = github_api.get_user()
+    user_escopo = Github(username, password).get_user()
 
     print("Obtendo lista de repositórios do Github...")
     lista_repos = [repo.name for repo in user_escopo.get_repos()]
@@ -57,6 +57,7 @@ else:
     user_escopo = None
 
 apps = []
+create_app_heroku = ''
 if args.deploy:
     print("Obtendo lista de apps do Heroku...")
     apps = os.popen('heroku apps').read().strip().split('\n')
@@ -79,37 +80,51 @@ print("Caso queira alterar o modo de instalação, pressione CTRL+C para cancela
 # Classe que contém o nome e o caminho da pasta, projeto e app
 class FoldersStructure:
 
-    def __init__(self, current_folder, new_folder, project, app):
+    def __init__(self, current_folder, new_folder, project, app, app_heroku):
         self.current_folder = current_folder
         self.new_folder = new_folder
         self.project = project
         self.app = app
+        self.app_heroku = app_heroku
         self.path_new_folder = '/'.join([current_folder, self.new_folder])
         self.path_project = '/'.join([self.path_new_folder, self.project])
         self.path_app = '/'.join([self.path_project, self.app])
 
 curr_folder = os.getcwd()
 
-aceita = list(list(string.ascii_lowercase) + list(string.digits) + ['-'])
+aceita_g = list(list(string.ascii_letters) + list(string.digits) + ['_', '-'])
+aceita_d = aceita_g[:-1]
+# aceita_h = aceita_g[:-1] + ['_']
+aceita_h = list(list(string.ascii_lowercase) + list(string.digits) + ['-'])
+
+def verifica(proj, repo):
+    palavra = ''
+    invalidos = ''
+    for caractere in proj:
+        if caractere not in repo:
+            invalidos += caractere
+        else:
+            palavra += caractere
+    if palavra != proj:
+        print("\nCaractere(s) inválido(s): {}\n".format(invalidos))
+        width = os.get_terminal_size()[0]
+        print("=" * width + "\n")
+        return False
+    else:
+        print("OK")
+    return True
+
 
 while True:
     if args.git:
         print("Você escolheu criar o repositório no Gihub. O nome da pasta e repositório serão os mesmos!!!")
-    print("O nome da pasta tem que ser apenas letras minúsculas, números e hífen.")
+    print("\nO nome da pasta e repositório só aceita letras minúsculas, números, underline(_) e hífen(-).")
     create_folder = input("Nome da pasta a ser criada: ")
-    pasta = ''
-    invalidos = ''
-    for letra in create_folder:
-        if letra not in aceita:
-            invalidos += letra
-        else:
-            pasta += letra
-    if pasta != create_folder:
-        print("\nCaractere(s) inválido(s): {}\n".format(invalidos))
-        width = os.get_terminal_size()[0]
-        print("=" * width + "\n")
+
+    if not verifica(create_folder, aceita_g):
+        pass
     else:
-        if os.path.exists(create_folder) or create_folder in lista_repos or create_folder in apps:
+        if os.path.exists(create_folder) or create_folder in lista_repos:
             print("Essa pasta (e|ou) repositório já existe(m). Escolha outro nome.\n")
             # width = rows, columns = os.popen('stty size', 'r').read().split()
             width = os.get_terminal_size()[0]
@@ -118,10 +133,39 @@ while True:
             os.makedirs(create_folder)
             if args.git:
                 user_escopo.create_repo(create_folder)
+                descricao = input("Você pode inserir uma descrição para o repositório no Github (opcional = ENTER): ")
+                user_escopo.get_repo(create_folder).edit(description=descricao)
             os.chdir('./{}'.format(create_folder))
-            create_project = input("Digite o nome do projeto: ")
-            create_app = input("Digite o nome da app: ")
-            folders = FoldersStructure(curr_folder, create_folder, create_project, create_app)
+
+            while True:
+                print("\nO Django só aceita letras minúsculas, números e underline(_) para o nome do projeto.")
+                create_project = input("Digite o nome do projeto Django: ")
+                if not verifica(create_project, aceita_d):
+                    continue
+                else:
+                    break
+
+            while True:
+                print("\nO nome do app aceita letras minúsculas, números e underline(_).")
+                create_app = input("Digite o nome da app do projeto Django: ")
+                if not verifica(create_app, aceita_d):
+                    continue
+                else:
+                    break
+
+            if args.deploy:
+                while True:
+                    print("\nO Heroku só aceita letras minúsculas, números e hífen(-) para a criação do app.")
+                    create_app_heroku = input("Nome do app que será criado no Heroku: ")
+                    if not verifica(create_app_heroku, aceita_h):
+                        continue
+                    if create_app_heroku in apps:
+                        print("Esse app já existe no Heroku. Escolha outro nome.\n")
+                        continue
+                    else:
+                        break
+
+            folders = FoldersStructure(curr_folder, create_folder, create_project, create_app, create_app_heroku)
             break
 
 print()
@@ -130,7 +174,7 @@ print()
 path_djc = os.getenv('PATH_DJC')
 
 # Cria o ambiente virtual e instala as dependências do requirements.txt
-os.system('virtualenv -p python3 .venv')
+os.system('virtualenv -p python3 .venv')    # ************* mudar para venv ********************
 print()
 os.chdir(folders.current_folder)
 os.system('cp {}/requirements.txt {}'.format(path_djc, folders.new_folder))
@@ -142,7 +186,6 @@ os.system('../.venv/bin/python ../manage.py startapp {}'.format(folders.app))
 os.chdir(folders.path_app)
 os.mkdir('static')
 os.mkdir('templates')
-os.system('cp {}/index.html templates'.format(path_djc))
 os.mkdir('html_to_django')
 os.system('cp {}/regex_html.py html_to_django'.format(path_djc))
 
@@ -232,19 +275,24 @@ def git_repo():
 
 # Faz o deploy no Heroku e abre o browser na página da aplicação
 def deploy_heroku():
-    os.system('heroku apps:create {}'.format(create_folder))
+    os.system('heroku apps:create {}'.format(create_app_heroku))
     os.system('heroku config:push')
     os.system('git push heroku master --force')
     os.system('heroku config:set ALLOWED_HOSTS=.herokuapp.com')
     os.system('heroku config:set DEBUG=False')
-    b.open('https://{}.herokuapp.com/'.format(create_folder))
+    # b.open('https://{}.herokuapp.com/'.format(folders.app_heroku))
+
 
 # Abre o browser com o github (opcional) e abre outra aba com o Django após a inicialização do servidor abaixo
 def abre_browser():
+    time.sleep(5)
+    b.open('http:/127.0.0.1:8000')
+    time.sleep(5)
     if args.git:
         b.open('github.com/{}/{}'.format(username, folders.new_folder))
-    time.sleep(3)
-    b.open('http:/127.0.0.1:8000')
+    time.sleep(5)
+    if args.deploy:
+        b.open('https://{}.herokuapp.com/'.format(folders.app_heroku))
 
 
 # Inicia o servidor do Django
@@ -252,19 +300,35 @@ def run_server():
     os.chdir(folders.path_new_folder)
     os.system('.venv/bin/python manage.py runserver')
 
+if args.deploy:
+    with open("{}/urls.py".format(folders.path_project), "r+") as arq_urls:
+        busca = re.search(r'from django.contrib import admin', arq_urls.read())
+        fim = busca.end() + 1
+        arq_urls.seek(fim)
+        arq_urls.write("from {}.{}.views import home\n\n\n"
+                       "urlpatterns = [\n"
+                       "    url(r'^$', home),\n"
+                       "    url(r'^admin/', admin.site.urls),\n"
+                       "]\n".format(folders.project, folders.app))
+
+    with open("{}/views.py".format(folders.path_app), "a") as arq_view:
+        arq_view.write('\ndef home(request):\n    return render(request, "index.html")\n')
+    os.chdir(folders.path_app)
+    os.system('cp -R {}/img static'.format(path_djc))
+    os.system('cp {}/index.html templates'.format(path_djc))
 
 # Se a opção for enviar para o github, chama a função acima
 if args.git:
     git_repo()
 
+if args.deploy:
+    deploy_heroku()
+    # threadObj2 = threading.Thread(target=deploy_heroku)
+    # threadObj2.start()
+
 # Para executar as tarefas/funções ao mesmo tempo
 threadObj = threading.Thread(target=abre_browser)
 threadObj.start()
 
-if args.deploy:
-    threadObj2 = threading.Thread(target=deploy_heroku)
-    threadObj2.start()
-
 threadObj2 = threading.Thread(target=run_server)
 threadObj2.start()
-
