@@ -305,10 +305,10 @@ if args.deploy:
         busca = re.search(r'from django.contrib import admin', arq_urls.read())
         fim = busca.end() + 1
         arq_urls.seek(fim)
-        arq_urls.write("from {}.{}.views import home\n\n\n"
+        arq_urls.write("from {}.{}.views import home\nfrom django.urls import path\n\n\n"
                        "urlpatterns = [\n"
-                       "    url(r'^$', home),\n"
-                       "    url(r'^admin/', admin.site.urls),\n"
+                       "    path('', home),\n"
+                       "    path('admin/', admin.site.urls),\n"
                        "]\n".format(folders.project, folders.app))
 
     with open("{}/views.py".format(folders.path_app), "a") as arq_view:
